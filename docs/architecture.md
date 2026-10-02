@@ -75,6 +75,21 @@ The `jobs` table is the queue. The worker claims a row with `SELECT ... FOR UPDA
 so two workers cannot take the same job, and a crashed worker releases its row automatically.
 Because the next step is decided only from the row, a restarted worker resumes the same Gnani job.
 
+## Where the worker runs
+
+Render's free tier has no background worker service, so the worker runs as a thread inside the
+FastAPI process, started once at startup by `lifespan()` in `backend/main.py`. This is safe because
+the worker keeps nothing in memory between ticks; everything it needs is in the `jobs` row.
+
+| Event | What happens |
+|---|---|
+| Restart or redeploy | The thread stops with the process. Postgres rolls back the unfinished step and releases the row lock. The new process starts a new thread, which continues from the row |
+| Server sleeps (about 15 minutes without requests) | The worker stops with it. An open job page keeps the server awake through its polling. Otherwise the job waits and continues at the next visit; Gnani keeps working on its side |
+| Is it alive? | `GET /health` returns `worker` (`ok`, `starting`, `stalled`) and `worker_last_tick_seconds_ago` |
+
+To run the worker as its own process instead: start `python worker.py` and set
+`RUN_WORKER_IN_API=false` on the API. No code changes.
+
 ## Progress and failures
 
 See the tables in the [README](../README.md#failure-handling). In short: upload progress is the real
@@ -84,6 +99,6 @@ failure ends in a visible message, and failed jobs can be retried without upload
 ## With more time
 
 - Browser uploads directly to the bucket with a signed upload URL (removes the 50 MB / API-server limit)
-- Worker as its own service; Gnani webhook instead of polling
+- Worker as its own always-on service; Gnani webhook instead of polling
 - User accounts, so each person sees only their uploads
 - Automatic clean-up of old audio; automated tests around the worker

@@ -32,6 +32,10 @@ SIGNED_URL_SECONDS = 6 * 60 * 60  # how long Gnani has to download the audio
 GNANI_FINISHED = {"COMPLETED", "PARTIAL_FAILURE", "FAILED"}  # results (or errors) are in /files
 GNANI_NEVER_RAN = {"START_FAILED", "CANCELLED"}
 
+# When the loop last finished a tick (time.time()). /health reports it, so we can
+# see from outside that the worker thread is alive. None until the first tick.
+last_tick_at = None
+
 
 def failed(message):
     return {"status": "FAILED", "error": message}
@@ -123,6 +127,7 @@ def run_once():
 
 
 def run_forever():
+    global last_tick_at
     log.info("worker started")
     while True:
         try:
@@ -130,6 +135,7 @@ def run_forever():
         except Exception:
             # e.g. the database is unreachable. Keep the loop alive and try again.
             log.exception("worker tick failed")
+        last_tick_at = time.time()
         time.sleep(TICK_SECONDS)
 
 

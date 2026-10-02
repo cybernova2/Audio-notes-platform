@@ -2,6 +2,7 @@
 
 import logging
 import threading
+import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -55,14 +56,24 @@ def database_error(request, exc):
 
 @app.get("/health")
 def health():
-    """Is the API up, and can it reach Postgres?"""
+    """Is the API up, can it reach Postgres, and is the worker loop still ticking?"""
     try:
         with db.connect() as conn:
             conn.execute("SELECT 1")
         database = "ok"
     except psycopg.Error:
         database = "unavailable"
-    return {"status": "ok", "database": database}
+
+    # A tick normally ends every ~10 s; a slow step (LLM retries) can take a couple of minutes.
+    if not config.RUN_WORKER_IN_API:
+        worker_state, seconds_ago = "runs as a separate process", None
+    elif worker.last_tick_at is None:
+        worker_state, seconds_ago = "starting", None
+    else:
+        seconds_ago = round(time.time() - worker.last_tick_at)
+        worker_state = "ok" if seconds_ago < 300 else "stalled"
+
+    return {"status": "ok", "database": database, "worker": worker_state, "worker_last_tick_seconds_ago": seconds_ago}
 
 
 @app.get("/config")

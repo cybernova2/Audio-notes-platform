@@ -1,6 +1,6 @@
 export const metadata = { title: "Architecture · Audio Notes" };
 
-const GITHUB_URL = "https://github.com/REPLACE_ME/audio-notes";
+const GITHUB_URL = "https://github.com/cybernova2/Audio-notes-platform";
 
 const DIAGRAM = `
  Browser (Next.js on Vercel)
@@ -131,9 +131,32 @@ export default function ArchitecturePage() {
         row. If the worker crashes or the server restarts, it reads the row again and continues with the same Gnani job
         instead of starting over.
       </p>
+      <h2>Where the worker runs</h2>
       <p>
-        In this deployment the worker runs as a thread inside the FastAPI process, because the free hosting tier has no
-        separate worker service. The same code runs as its own process with <code>python worker.py</code>.
+        Render&apos;s free tier has no background worker service, so the worker runs as a thread inside the FastAPI
+        process. It is started once when the server starts, next to the code that serves requests. This is safe
+        because the worker keeps nothing in memory between ticks: everything it needs is in the <code>jobs</code> row.
+      </p>
+      <ul>
+        <li>
+          <strong>Restart or redeploy:</strong> the thread stops with the process. An unfinished step is rolled back by
+          Postgres, which also releases the row lock. The new process starts a new thread, which continues from the
+          row.
+        </li>
+        <li>
+          <strong>Sleep:</strong> the free tier stops the server after about 15 minutes without requests, and the worker
+          stops with it. While a job page is open, its polling keeps the server awake until the job finishes. If the
+          page is closed, the job waits and continues when someone next opens the app. Gnani keeps working on its side
+          in the meantime.
+        </li>
+        <li>
+          <strong>Checking it is alive:</strong> <code>GET /health</code> reports the database connection and how many
+          seconds ago the worker finished its last tick.
+        </li>
+      </ul>
+      <p>
+        The same file runs unchanged as its own process with <code>python worker.py</code>. Moving to a separate worker
+        service is a configuration change (<code>RUN_WORKER_IN_API=false</code>), not a code change.
       </p>
 
       <h2>Progress</h2>
@@ -183,8 +206,8 @@ export default function ArchitecturePage() {
           API server, and move to a storage plan without the 50 MB limit.
         </li>
         <li>
-          Run the worker as a separate service. On the free tier the server sleeps when nobody is using it, which pauses
-          the worker too; jobs resume when it wakes.
+          Run the worker as a separate, always-on service, so jobs finish even when nobody has the app open and a
+          busy API cannot slow the worker down.
         </li>
         <li>
           Use Gnani&apos;s webhook to be told when a job finishes, keeping polling as the fallback.

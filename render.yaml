@@ -1,5 +1,10 @@
 # Render "Blueprint": describes the backend service so it can be created from the repo.
 # Secrets are not stored here (sync: false means "ask for the value in the dashboard").
+#
+# There is one service on purpose. The background worker runs as a thread inside this
+# web service (see lifespan() in backend/main.py), because Render has no free worker plan.
+# To run it separately instead: add a "type: worker" service with startCommand
+# "python worker.py", and set RUN_WORKER_IN_API=false on this service.
 services:
   - type: web
     name: audio-notes-api
@@ -26,34 +31,3 @@ services:
         value: audio
       - key: CORS_ORIGINS
         sync: false
-
-
-  - type: worker
-    name: audio-notes-worker
-    runtime: python
-    plan: free
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: python worker.py
-
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.13.5
-
-      - key: GNANI_API_KEY
-        sync: false
-
-      - key: GEMINI_API_KEY
-        sync: false
-
-      - key: DATABASE_URL
-        sync: false
-
-      - key: SUPABASE_URL
-        sync: false
-
-      - key: SUPABASE_SERVICE_KEY
-        sync: false
-
-      - key: SUPABASE_BUCKET
-        value: audio

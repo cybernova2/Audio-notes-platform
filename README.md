@@ -4,6 +4,7 @@ Upload an audio recording, get back a transcript (Gnani ASR) and a short summary
 Built for the Gnani internship take-home task.
 
 - **Live app:** _added after deployment_
+- **Code:** https://github.com/cybernova2/Audio-notes-platform
 - **Architecture page:** `/architecture` in the live app
 
 ## Features
@@ -137,7 +138,7 @@ Open http://localhost:3000.
 
 | Method | Path | What it does |
 |---|---|---|
-| `GET` | `/health` | API is up; can it reach Postgres |
+| `GET` | `/health` | API is up, can it reach Postgres, and how long ago the worker last ticked |
 | `GET` | `/config` | allowed file types, languages, size limit (used by the upload form) |
 | `POST` | `/jobs` | multipart `file` + `language`; stores the file, queues the job, returns it (201) |
 | `GET` | `/jobs` | past uploads, newest first |
@@ -176,7 +177,7 @@ API keys only exist on the backend. Error messages shown to users never contain 
 - **One step per tick, decided from the row.** Gnani rate-limits calls made less than about 10 seconds apart, so the worker makes one Gnani call per tick. Since the next step depends only on what is saved, a restart resumes instead of starting over.
 - **Polling, not WebSockets.** The worker itself only learns about progress every 10 seconds, so a 5 second poll from the browser loses nothing and needs no extra infrastructure.
 - **Audio in the bucket, text in Postgres.** Gnani downloads the audio through a signed URL, so the bytes are never sent twice by the backend.
-- **Worker inside the API process in production.** The free hosting tier has no separate worker service. `worker.py` runs unchanged as its own process.
+- **Worker inside the API process in production.** Render's free tier has no background worker service, so `lifespan()` in `main.py` starts the worker loop in a thread. The worker keeps nothing in memory between ticks, so a restart or a sleep only pauses jobs; they continue from the row. `worker.py` runs unchanged as its own process (`RUN_WORKER_IN_API=false`), which is how I would run it in production. `render.yaml` therefore describes one service.
 
 ## Known limitations and future improvements
 
