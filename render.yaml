@@ -26,3 +26,34 @@ services:
         value: audio
       - key: CORS_ORIGINS
         sync: false
+
+
+  - type: worker
+    name: audio-notes-worker
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python worker.py
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+
+      - key: GNANI_API_KEY
+        sync: false
+
+      - key: GEMINI_API_KEY
+        sync: false
+
+      - key: DATABASE_URL
+        sync: false
+
+      - key: SUPABASE_URL
+        sync: false
+
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+
+      - key: SUPABASE_BUCKET
+        value: audio
