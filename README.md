@@ -3,7 +3,7 @@
 Upload an audio recording, get back a transcript (Gnani ASR) and a short summary (Gemini).
 Built for the Gnani internship take-home task.
 
-- **Live app:** _added after deployment_
+- **Live app:** https://audio-notes-platform-ruby.vercel.app/
 - **Code:** https://github.com/cybernova2/Audio-notes-platform
 - **Architecture page:** `/architecture` in the live app
 
